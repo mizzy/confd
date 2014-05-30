@@ -1,19 +1,20 @@
 package consul
 
 import (
-	"github.com/armon/consul-kv"
+	"github.com/mizzy/consul-catalog"
+	"strings"
 )
 
 // Client provides a wrapper around the consulkv client
 type Client struct {
-	client *consulkv.Client
+	client *consulcatalog.Client
 }
 
 // NewConsulClient returns a new client to Consul for the given address
 func NewConsulClient(addr string) (*Client, error) {
-	conf := consulkv.DefaultConfig()
+	conf := consulcatalog.DefaultConfig()
 	conf.Address = addr
-	client, err := consulkv.NewClient(conf)
+	client, err := consulcatalog.NewClient(conf)
 	if err != nil {
 		return nil, err
 	}
@@ -23,17 +24,17 @@ func NewConsulClient(addr string) (*Client, error) {
 	return c, nil
 }
 
-// GetValues queries Consul for keys
-func (c *Client) GetValues(keys []string) (map[string]interface{}, error) {
-	vars := make(map[string]interface{})
-	for _, key := range keys {
-		_, pairs, err := c.client.List(key)
+// Queries Consul for services
+func (c *Client) GetValues(services []string) (map[string]interface{}, error) {
+	result := make(map[string]interface{})
+	for _, service := range services {
+		service = strings.Replace(service, "/", "", -1)
+		var nodes consulcatalog.Nodes
+		_, nodes, err := c.client.GetService(service)
 		if err != nil {
-			return vars, err
+			return result, err
 		}
-		for _, p := range pairs {
-			vars[p.Key] = string(p.Value)
-		}
+		result[service] = nodes
 	}
-	return vars, nil
+	return result, nil
 }
